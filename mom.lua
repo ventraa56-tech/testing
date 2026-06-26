@@ -1,6 +1,6 @@
--- Roblox Fly Mode Script with Mobile Joystick Support (FIXED DRAG)
+-- Roblox Fly Mode Script with Mobile Joystick Support (FIXED FOR MOBILE TOUCH)
 -- Author: 170F Team
--- Features: Fly mode, Mobile Joystick, Modern UI, Draggable, Minimizable, Rainbow Text
+-- Features: Fly mode, Mobile Joystick, Modern UI, Draggable by Touch, Minimizable, Rainbow Text
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -235,7 +235,7 @@ controlLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
 controlLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
 controlLabel.TextSize = 10
 controlLabel.Font = Enum.Font.Gotham
-controlLabel.Text = "📱 MOBILE JOYSTICK\n🎮 Use Joystick to Move\n\n⬆️ JUMP BUTTON - Ascend\n⬇️ - Descend\n\nDrag to move UI"
+controlLabel.Text = "📱 MOBILE JOYSTICK\n🎮 Use Joystick to Move\n\n⬆️ JUMP - Ascend\n⬇️ CROUCH - Descend\n\n👆 Drag title to move"
 controlLabel.TextWrapped = true
 controlLabel.BorderSizePixel = 0
 controlLabel.Parent = contentFrame
@@ -253,11 +253,11 @@ local bodyGyro
 local jumpPressTime = 0
 local crouchPressTime = 0
 
--- ===== FIXED DRAG SYSTEM =====
+-- ===== TOUCH DRAG SYSTEM (MOBILE FIX) =====
 local dragging = false
 local dragStart = Vector2.new(0, 0)
 local startPos = UDim2.new(0, 0, 0, 0)
-local dragInput
+local touchId = nil
 
 -- Functions
 local function startFly()
@@ -298,10 +298,10 @@ local function stopFly()
     toggleButton.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
 end
 
--- ===== DRAG HANDLING =====
-local function updateDrag(input)
-    if dragging then
-        local delta = input.Position - dragStart
+-- ===== TOUCH DRAG HANDLING (MOBILE) =====
+local function updateDragTouch(touchInput)
+    if dragging and touchInput.UserInputType == Enum.UserInputType.Touch then
+        local delta = touchInput.Position - dragStart
         mainFrame.Position = UDim2.new(
             startPos.X.Scale, startPos.X.Offset + delta.X,
             startPos.Y.Scale, startPos.Y.Offset + delta.Y
@@ -310,28 +310,25 @@ local function updateDrag(input)
 end
 
 titleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
+        touchId = input
         
+        -- Detect when touch ends
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
+                touchId = nil
             end
         end)
     end
 end)
 
 titleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input == dragInput then
-        updateDrag(input)
+    if dragging and input.UserInputType == Enum.UserInputType.Touch then
+        updateDragTouch(input)
     end
 end)
 
@@ -386,15 +383,21 @@ exitButton.MouseButton1Click:Connect(function()
     script:Destroy()
 end)
 
--- Slider Interaction
+-- Slider Interaction (Touch + Mouse compatible)
 local sliderDragging = false
-speedSlider.MouseButton1Down:Connect(function()
-    sliderDragging = true
+local sliderTouchId = nil
+
+speedSlider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        sliderDragging = true
+        sliderTouchId = input
+    end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+speedSlider.InputEnded:Connect(function(input)
+    if input == sliderTouchId then
         sliderDragging = false
+        sliderTouchId = nil
     end
 end)
 
@@ -409,7 +412,14 @@ RunService.RenderStepped:Connect(function()
     
     -- Speed Slider Control
     if sliderDragging and flying then
-        local mouseLocation = UserInputService:GetMouseLocation()
+        local mouseLocation
+        if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+            mouseLocation = UserInputService:GetMouseLocation()
+        else
+            -- For touch, estimate position
+            mouseLocation = Vector2.new(screenGui.AbsoluteSize.X / 2, screenGui.AbsoluteSize.Y / 2)
+        end
+        
         local sliderPosition = speedSlider.AbsolutePosition.X
         local sliderSize = speedSlider.AbsoluteSize.X
         
@@ -471,4 +481,4 @@ end)
 
 print("✅ MOBILE FLY MODE SCRIPT LOADED - Author: 170F Team")
 print("📱 Use mobile joystick to move, SPACE to ascend, CTRL to descend")
-print("🖱️ Drag UI from the title bar!")
+print("👆 Drag UI by touching the title bar!")
