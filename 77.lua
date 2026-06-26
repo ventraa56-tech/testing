@@ -1,4 +1,4 @@
--- Roblox Fly Mode Script with Mobile Joystick Support
+-- Roblox Fly Mode Script with Mobile Joystick Support (FIXED DRAG)
 -- Author: 170F Team
 -- Features: Fly mode, Mobile Joystick, Modern UI, Draggable, Minimizable, Rainbow Text
 
@@ -253,6 +253,12 @@ local bodyGyro
 local jumpPressTime = 0
 local crouchPressTime = 0
 
+-- ===== FIXED DRAG SYSTEM =====
+local dragging = false
+local dragStart = Vector2.new(0, 0)
+local startPos = UDim2.new(0, 0, 0, 0)
+local dragInput
+
 -- Functions
 local function startFly()
     if flying then return end
@@ -291,6 +297,43 @@ local function stopFly()
     toggleButton.Text = "▶ START FLY"
     toggleButton.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
 end
+
+-- ===== DRAG HANDLING =====
+local function updateDrag(input)
+    if dragging then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+titleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        updateDrag(input)
+    end
+end)
 
 -- Input Handling for Mobile Joystick & Keyboard
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -355,23 +398,6 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Draggable UI
-local dragging = false
-local dragStart = Vector2.new(0, 0)
-local frameStart = UDim2.new(0, 0, 0, 0)
-
-titleBar.MouseButton1Down:Connect(function()
-    dragging = true
-    dragStart = UserInputService:GetMouseLocation()
-    frameStart = mainFrame.Position
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
 -- Main Loop
 RunService.RenderStepped:Connect(function()
     if not character or not humanoidRootPart then return end
@@ -380,13 +406,6 @@ RunService.RenderStepped:Connect(function()
     colorIndex = colorIndex + 1
     if colorIndex > #rainbowColors then colorIndex = 1 end
     titleText.TextColor3 = rainbowColors[colorIndex]
-    
-    -- Dragging UI
-    if dragging then
-        local currentMouse = UserInputService:GetMouseLocation()
-        local delta = currentMouse - dragStart
-        mainFrame.Position = frameStart + UDim2.new(0, delta.X, 0, delta.Y)
-    end
     
     -- Speed Slider Control
     if sliderDragging and flying then
@@ -452,3 +471,4 @@ end)
 
 print("✅ MOBILE FLY MODE SCRIPT LOADED - Author: 170F Team")
 print("📱 Use mobile joystick to move, SPACE to ascend, CTRL to descend")
+print("🖱️ Drag UI from the title bar!")
